@@ -48,7 +48,7 @@ if [ "$DISTRIBUTE" = true ]; then
     DISPLAY_PORT=$((10+i))
     
     # 启动容器并运行训练
-    sudo docker run -i --rm -v "${PWD}":/app -w /app --name $CONTAINER_NAME fighting_game:v1 /bin/sh -c "Xvfb :$DISPLAY_PORT -screen 0 1024x768x16 & export DISPLAY=:$DISPLAY_PORT; python train.py --device_target=$DEVICE_TARGET --parallel=true --distribute=true --device_num=$DEVICE_NUM --rank_id=$i --episode=$EPISODE > log/train_log_$i.txt 2> log/train_error_log_$i.txt" &
+    sudo docker run -d --rm -v "${PWD}":/app -w /app --name $CONTAINER_NAME fighting_game:v1 /bin/sh -c "Xvfb :$DISPLAY_PORT -screen 0 1024x768x16 & export DISPLAY=:$DISPLAY_PORT; python train.py --device_target=$DEVICE_TARGET --parallel=true --distribute=true --device_num=$DEVICE_NUM --rank_id=$i --episode=$EPISODE > log/train_log_$i.txt 2> log/train_error_log_$i.txt" &
     
     # 等待一段时间，避免资源争用
     sleep 2
@@ -59,5 +59,5 @@ if [ "$DISTRIBUTE" = true ]; then
   echo "所有训练进程已完成"
 else
   # 本地并行模式，单个容器内进行
-  sudo docker run -i --rm -v "${PWD}":/app -w /app --name fighting_game fighting_game:v1 /bin/sh -c "Xvfb :10 -screen 0 1024x768x16 & export DISPLAY=:10; python train.py --device_target=$DEVICE_TARGET --parallel=true --distribute=false --device_num=$DEVICE_NUM --episode=$EPISODE > log/train_log.txt 2> log/train_error_log.txt"
+  sudo docker run -d --rm -v "${PWD}":/app -w /app --name fighting_game fighting_game:v1 /bin/sh -c "Xvfb :10 -screen 0 1024x768x16 & export DISPLAY=:10; python train.py --device_target=$DEVICE_TARGET --parallel=true --distribute=false --device_num=$DEVICE_NUM --episode=$EPISODE > log/train_log.txt 2> log/train_error_log.txt"
 fi
