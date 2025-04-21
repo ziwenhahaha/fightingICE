@@ -27,7 +27,7 @@ from mindspore_rl.core import Session
 from mindspore_rl.utils.callback import CheckpointCallback, LossCallback, EvaluateCallback
 
 parser = argparse.ArgumentParser(description='MindSpore Reinforcement DQN')
-parser.add_argument('--episode', type=int, default=1000, help='total episode numbers.')
+parser.add_argument('--episode', type=int, default=10000, help='total episode numbers.')
 parser.add_argument('--device_target', type=str, default='Auto', choices=['Ascend', 'CPU', 'GPU', 'Auto'],
                     help='Choose a device to run the dqn example(Default: Auto).')
 parser.add_argument('--parallel', type=bool, default=False, help='Enable parallel training.')

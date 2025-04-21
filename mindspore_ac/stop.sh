@@ -1,2 +1,2 @@
 #!/bin/bash
-docker stop fighting_game
+sudo docker stop fighting_game
