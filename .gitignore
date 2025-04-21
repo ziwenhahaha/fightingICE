@@ -1,0 +1,12 @@
+*.tar
+*.zip
+*.jar
+ckpt
+data
+kernel_meta
+lib
+log
+myenv
+*.log
+*.pyc
+*.txt
