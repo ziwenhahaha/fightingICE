@@ -12,3 +12,5 @@ myenv
 *.txt
 *.DS_Store
 *.key
+*.out
+*.so
