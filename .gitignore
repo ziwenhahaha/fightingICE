@@ -10,3 +10,5 @@ myenv
 *.log
 *.pyc
 *.txt
+*.DS_Store
+*.key
