@@ -1,6 +1,8 @@
 > mindspore_ac是助教的ac代码
-mindspore_dqn是助教的dqn代码
-torch_dqn是我重构的代码，里面实现好了并行
+>
+> mindspore_dqn是助教的dqn代码
+>
+>torch_dqn是我重构的代码，里面实现好了并行
 
 ## 简单易用的使用说明：
 把助教的DQN代码下载到本地，然后改名字为torch_dqn（改成什么都可以）
