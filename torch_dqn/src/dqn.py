@@ -137,6 +137,7 @@ class DQNAgent:
         
         # 设置设备
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        print(f"当前网络的设备: {self.device} ")
         self.policy_net.to(self.device)
         self.target_net.to(self.device)
     
@@ -187,6 +188,7 @@ class DQNAgent:
         
         # 从经验回放缓冲区采样批次
         state, action, reward, next_state, done = self.replay_buffer.sample(self.batch_size)
+        print("当前的设备:", self.device)
         state = state.to(self.device)
         action = action.to(self.device)
         reward = reward.to(self.device)
@@ -195,6 +197,8 @@ class DQNAgent:
         
         # 计算当前Q值
         q_values = self.policy_net(state)
+        print("当前的Q值:", q_values)
+        print("q_values的设备:", q_values.device)
         q_value = q_values.gather(1, action.unsqueeze(1)).squeeze(1)
         
         # 计算目标Q值
@@ -304,6 +308,7 @@ class DQNTrainer:
             
             # 学习
             loss = self.agent.learn()
+            
             if loss != 0.0:
                 losses.append(loss)
             
