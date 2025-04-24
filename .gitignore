@@ -14,3 +14,4 @@ myenv
 *.key
 *.out
 *.so
+*.pt
