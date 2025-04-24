@@ -57,6 +57,37 @@ def parse_arguments():
 
 
 def evaluate(args):
+
+    """训练主函数"""
+    # 需要提前在外面执行 Xvfb :10 -screen 0 1024x768x16 &   执行一次即可
+    # 设置虚拟显示器
+    # 这行代码是为了在没有显示器的环境中运行GUI程序
+    os.environ['DISPLAY'] = ':10'
+
+    # 获取当前脚本的目录
+    script_directory = os.path.dirname(os.path.abspath(sys.argv[0]))
+
+    # 设置工作目录为脚本所在的目录
+    os.chdir(script_directory)
+
+    # 验证当前工作目录
+    current_directory = os.getcwd()
+    print(f"当前工作目录已设置为: {current_directory}")
+
+    # 检查CUDA和cuDNN版本
+    print("torch版本:   ",torch.__version__)
+    print("cuda版本:    ",torch.version.cuda)
+    print("cudnn版本:   ",torch.backends.cudnn.version())
+    print("cuda能否使用: ",torch.cuda.is_available())
+    print("gpu数量:     ",torch.cuda.device_count())
+    print("当前设备索引: ",torch.cuda.current_device())
+    print("返回gpu名字： ",torch.cuda.get_device_name(0))
+    try:
+        print("返回gpu名字： ",torch.cuda.get_device_name(1))
+    except:
+        pass
+    
+
     """评估主函数"""
     # 设置随机种子
     np.random.seed(args.seed)
