@@ -289,16 +289,18 @@ class SubprocVecEnvWithLogging(SubprocVecEnv):
     增加了错误处理机制，当某个环境出错时，可以将其标记为无效并继续处理其他环境
     """
     
-    def __init__(self, env_fns, log_dir="logs", timeout=30):
+    def __init__(self, env_fns, log_dir="logs", timeout=30, batch_reset_size=0):
         """
         Args:
             env_fns: 一个环境创建函数的列表
             log_dir: 日志文件存放的目录
             timeout: 等待环境响应的超时时间（秒）
+            batch_reset_size: 每批重启的环境数量，0表示全部一次性重启
         """
         self.num_envs = len(env_fns)
         self.log_dir = log_dir
         self.timeout = timeout
+        self.batch_reset_size = batch_reset_size  # 添加批量重启大小参数
         
         # 环境有效性掩码，初始时所有环境都有效
         self.env_isValids = np.ones(self.num_envs, dtype=bool)
@@ -346,6 +348,8 @@ class SubprocVecEnvWithLogging(SubprocVecEnv):
             self.action_space = gym.spaces.Discrete(40)
         
         print(f"创建了 {self.num_envs} 个环境，日志输出到 {self.log_dir} 目录")
+        if self.batch_reset_size > 0:
+            print(f"启用分批重启功能，每批重启 {self.batch_reset_size} 个环境")
     
     def step(self, actions):
         """
@@ -424,40 +428,87 @@ class SubprocVecEnvWithLogging(SubprocVecEnv):
     def reset(self, **kwargs):
         """
         重置所有有效的环境，添加了错误处理
+        支持分批重启以减轻CPU负担
         
         Returns:
             观察值列表
         """
         # 为无效环境创建默认观察值
         default_obs = np.zeros(self.observation_space.shape, dtype=self.observation_space.dtype)
-        observations = []
+        observations = [default_obs for _ in range(self.num_envs)]  # 预先填充默认观察值
         
-        # 循环处理每个环境
-        for i, remote in enumerate(self.remotes):
-            # 跳过已标记为无效的环境
-            if not self.env_isValids[i]:
-                observations.append(default_obs)
-                continue
-                
-            try:
-                # 发送重置命令
-                remote.send(('reset', kwargs))
-                
-                # 等待结果，设置超时
-                if remote.poll(self.timeout):
-                    obs = remote.recv()
-                    observations.append(obs)
-                else:
-                    print(f"环境 {i} 重置超时，标记为无效")
-                    self.env_isValids[i] = False
-                    self.env_status[i] = '重置超时'
-                    observations.append(default_obs)
+        # 获取所有有效环境的索引
+        valid_indices = self.get_valid_env_indices()
+        
+        # 如果启用了分批重启
+        if self.batch_reset_size > 0 and len(valid_indices) > self.batch_reset_size:
+            print(f"分批重启环境: 总共 {len(valid_indices)} 个有效环境，每批 {self.batch_reset_size} 个")
             
-            except Exception as e:
-                print(f"环境 {i} 重置出错: {str(e)}，标记为无效")
-                self.env_isValids[i] = False
-                self.env_status[i] = f'重置错误: {str(e)}'
-                observations.append(default_obs)
+            # 将环境分成多批
+            batches = []
+            for i in range(0, len(valid_indices), self.batch_reset_size):
+                batches.append(valid_indices[i:i+self.batch_reset_size])
+            
+            # 分批重置环境
+            for batch_idx, batch in enumerate(batches):
+                print(f"正在重启第 {batch_idx+1}/{len(batches)} 批环境 ({len(batch)} 个)")
+                
+                # 重置这一批的环境
+                for i in batch:
+                    try:
+                        # 发送重置命令
+                        self.remotes[i].send(('reset', kwargs))
+                    except Exception as e:
+                        print(f"环境 {i} 重置出错: {str(e)}，标记为无效")
+                        self.env_isValids[i] = False
+                        self.env_status[i] = f'重置错误: {str(e)}'
+                
+                # 接收这一批的结果
+                for i in batch:
+                    # 如果环境仍然有效
+                    if self.env_isValids[i]:
+                        try:
+                            # 等待结果，设置超时
+                            if self.remotes[i].poll(self.timeout):
+                                obs = self.remotes[i].recv()
+                                observations[i] = obs
+                            else:
+                                print(f"环境 {i} 重置超时，标记为无效")
+                                self.env_isValids[i] = False
+                                self.env_status[i] = '重置超时'
+                        except Exception as e:
+                            print(f"环境 {i} 接收重置结果出错: {str(e)}，标记为无效")
+                            self.env_isValids[i] = False
+                            self.env_status[i] = f'重置错误: {str(e)}'
+                
+                # 每批之间等待一点时间，减轻CPU压力
+                if batch_idx < len(batches) - 1:  # 不是最后一批
+                    import time
+                    time.sleep(0.5)  # 等待0.5秒
+        else:
+            # 原来的实现：一次性重置所有环境
+            for i, remote in enumerate(self.remotes):
+                # 跳过已标记为无效的环境
+                if not self.env_isValids[i]:
+                    continue
+                    
+                try:
+                    # 发送重置命令
+                    remote.send(('reset', kwargs))
+                    
+                    # 等待结果，设置超时
+                    if remote.poll(self.timeout):
+                        obs = remote.recv()
+                        observations[i] = obs
+                    else:
+                        print(f"环境 {i} 重置超时，标记为无效")
+                        self.env_isValids[i] = False
+                        self.env_status[i] = '重置超时'
+                
+                except Exception as e:
+                    print(f"环境 {i} 重置出错: {str(e)}，标记为无效")
+                    self.env_isValids[i] = False
+                    self.env_status[i] = f'重置错误: {str(e)}'
         
         return np.array(observations)
     
